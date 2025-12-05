@@ -12,6 +12,7 @@ from transformers import BrosProcessor, BrosForTokenClassification, BrosSpadeEEF
 def get_data():
     global label2id 
     global id2label 
+    global label_list
     funsd = load_dataset("nielsr/funsd", trust_remote_code=True)
     label_list = funsd["train"].features["ner_tags"].feature.names  
     id2label = {v:k for v,k in enumerate(label_list)}
@@ -124,7 +125,7 @@ def main(args):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     funsd, id2label, label2id, label_list = get_data()
     print("[bros funsd] Got data")
-    processor, model = get_model()
+    processor, model = get_model(id2label,label2id, label_list)
     print("[bros funsd] Got model")
     train, val = preprocess(funsd)
     print("[bros funsd] Preprocessed")
@@ -133,7 +134,7 @@ def main(args):
     global metric
     metric = evaluate.load("seqeval")
     
-    Trainer(
+    trainer = Trainer(
         model=model,
         args=training_args,
         train_dataset=train,
@@ -142,12 +143,12 @@ def main(args):
         processing_class=processor,
         compute_metrics=compute_metrics,
     )
-    Trainer.train()
+    model = trainer.train()
 
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("--epochs", help="amount of epochs", default=10)
+    parser.add_argument("--epochs", help="amount of epochs", default=10, type=int)
     args= parser.parse_args()
     main(args)
