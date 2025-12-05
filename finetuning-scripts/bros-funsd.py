@@ -1,7 +1,7 @@
 import torch
 import argparse
 import numpy as np
-from sklearn.metrics import preceision_recall_fscore_support
+from sklearn.metrics import precision_recall_fscore_support
 from PIL import Image,ImageDraw, ImageFont
 from datasets import load_dataset
 import pandas as pd
@@ -36,8 +36,8 @@ def normalize_bbox(bbox, width, height):
     ]
 
 
-def tokenize_words(batch):
-  encodings = processor(
+def tokenize_words(batch, processor):
+  encodings = processor.tokenizer(
     batch["words"],
     is_split_into_words=True,
     truncation=True,
@@ -71,8 +71,9 @@ def tokenize_words(batch):
 
 
 def preprocess(data):
-    train_dataset = data["train"].map(tokenize_words, batched=True, remove_columns=data["train"].column_names)
-    val_dataset = data["test"].map(tokenize_words, batched=True, remove_columns=data["train"].column_names)
+    from functools import partial
+    train_dataset = data["train"].map(partial(tokenize_words, processor=processor), batched=True, remove_columns=data["train"].column_names)
+    val_dataset = data["test"].map(partial(tokenize_words, processor=processor), batched=True, remove_columns=data["train"].column_names)
 
     train_dataset.set_format("torch")
     val_dataset.set_format("torch")
@@ -87,7 +88,8 @@ def get_training_args(args):
     per_device_train_batch_size=8,
     per_device_eval_batch_size=8,
     num_train_epochs=args.epochs,
-    save_strategy="epoch",
+    save_strategy="best",
+    save_total_limit=2,
     optim="adamw_torch",
     load_best_model_at_end=True,
     push_to_hub=False,
@@ -149,4 +151,3 @@ if __name__ == '__main__':
     parser.add_argument("--epochs", help="amount of epochs", default=10)
     args= parser.parse_args()
     main(args)
-
