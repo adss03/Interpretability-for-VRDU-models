@@ -82,6 +82,7 @@ def preprocess(data):
 
 
 def get_training_args(args):
+    # Take from config/bros in bros githu
     return TrainingArguments(
     output_dir="./bros-funsd-finetuned",
     eval_strategy="epoch",
