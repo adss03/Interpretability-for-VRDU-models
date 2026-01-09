@@ -12,20 +12,6 @@ results:
 }         
 '''
 
-'''
-results:
-{
-  'eval_loss': 1.6927354335784912, 
-  'eval_precision': 0.5546666666666666, 
-  'eval_recall': 0.611964694344557, 
-  'eval_f1': 0.5819086105066832, 
-  'eval_accuracy': 0.6861001051184604, 
-  'epoch': 100.0
-  'train_loss': 0.3588285522460937, 
-  'epoch': 100.0
-}         
-'''
-
 import torch
 import itertools
 import argparse
