@@ -1,3 +1,17 @@
+'''
+results:
+{
+  'eval_loss': 1.6927354335784912, 
+  'eval_precision': 0.5546666666666666, 
+  'eval_recall': 0.611964694344557, 
+  'eval_f1': 0.5819086105066832, 
+  'eval_accuracy': 0.6861001051184604, 
+  'epoch': 100.0
+  'train_loss': 0.3588285522460937, 
+  'epoch': 100.0
+}         
+'''
+
 import torch
 import argparse
 import numpy as np
@@ -5,6 +19,7 @@ from sklearn.metrics import precision_recall_fscore_support
 from PIL import Image,ImageDraw, ImageFont
 from datasets import load_dataset
 import pandas as pd
+from sklearn.metrics import confusion_matrix
 
 import evaluate
 from transformers import BrosProcessor, BrosForTokenClassification, BrosSpadeEEForTokenClassification, AutoTokenizer, TrainingArguments, Trainer, DefaultDataCollator
@@ -58,7 +73,7 @@ def tokenize_words(batch, processor):
     # Align boxes to sub words
     aligned_boxes, aligned_labels = [], []
     for word_id in encodings.word_ids(batch_index=idx):
-      if word_id is None:
+      if word_id in [None,0,100,101,102,103]:
         aligned_boxes.append([0, 0, 0, 0])
         aligned_labels.append(-100)
       else:
@@ -112,22 +127,20 @@ def get_training_args(args):
       output_dir="./bros-funsd-finetuned",
       eval_strategy="epoch",
       num_train_epochs=args.epochs,
-      gradient_clip_val=1.0,
-      gradient_clip_algorithm="norm",
-      precision=16,
+      fp16=True,
       per_device_train_batch_size=16,
       per_device_eval_batch_size=8,
       optim="adamw_torch",
       learning_rate=5e-5,
-      lr_scheduler="linear",
+      lr_scheduler_type="linear",
       load_best_model_at_end=True,
       push_to_hub=False,
       report_to = 'none',
       metric_for_best_model="eval_f1",
+      save_strategy="best",
+      save_total_limit=1
     )
-
-    
-
+ 
 
 def compute_metrics(p):
   predictions, labels = p
@@ -141,8 +154,15 @@ def compute_metrics(p):
       [id2label[l] for (p, l) in zip(prediction, label) if l != -100]
       for prediction, label in zip(predictions, labels)
   ]
-  results = metric.compute(predictions=true_preds, references=true_labels)
 
+  results = metric.compute(predictions=true_preds, references=true_labels)
+  
+  # confusion matrix with p 
+
+  with open("confusion_matrix.txt", 'w') as f:
+    f.write(f'{[len(p) for p in predictions]}\n')
+    f.write(f'{[len(l) for l in labels]}\n')
+    f.write(f'{confusion_matrix([l for lab in true_labels for l in lab], [p for preds in true_preds for p in preds])}')
   return {
       "precision": results["overall_precision"],
       "recall": results["overall_recall"],
@@ -152,6 +172,11 @@ def compute_metrics(p):
 
 
 def main(args):
+    if not args.warnings:
+      import warnings
+      warnings.filterwarnings('ignore') 
+
+    warnings = False
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     funsd, id2label, label2id, label_list = get_data()
     print("[bros funsd] Got data")
@@ -176,9 +201,9 @@ def main(args):
     model = trainer.train()
 
 
-
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--epochs", help="amount of epochs", default=10, type=int)
+    parser.add_argument("--warnings", help="default False", default=False, type=bool)
     args= parser.parse_args()
     main(args)
