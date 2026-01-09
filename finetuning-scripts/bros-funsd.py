@@ -35,7 +35,7 @@ def normalize_bbox(bbox, width, height):
         int(1000 * (bbox[2] / width)),
         int(1000 * (bbox[3] / height)),
     ]
-
+ 
 
 def tokenize_words(batch, processor):
   encodings = processor.tokenizer(
@@ -47,8 +47,11 @@ def tokenize_words(batch, processor):
     return_tensors="pt"
   )
 
+  def make_box_first_token_mask():
+     raise NotImplementedError
+
   batch_normalized_bboxes, encoded_labels = [], []
-  for idx, (bboxes, img, labels) in enumerate(zip(batch["bboxes"], batch["image"], batch["ner_tags"])):
+  for idx, (words, bboxes, img, labels) in enumerate(zip(batch["words"], batch["bboxes"], batch["image"], batch["ner_tags"])):
     width, height = img.size
     normalized_bboxes = [normalize_bbox(bbox, width, height) for bbox in bboxes]
 
@@ -61,6 +64,8 @@ def tokenize_words(batch, processor):
       else:
         aligned_boxes.append(normalized_bboxes[word_id])
         aligned_labels.append(labels[word_id])
+    
+    # box_first_token_mask = make_box_first_token_mask()
 
     batch_normalized_bboxes.append(aligned_boxes)
     encoded_labels.append(aligned_labels)
@@ -78,26 +83,50 @@ def preprocess(data):
 
     train_dataset.set_format("torch")
     val_dataset.set_format("torch")
+
     return train_dataset, val_dataset
+
+
+# def get_training_args(args):
+#     # Take from config/bros in bros githu
+#     return TrainingArguments(
+#     output_dir="./bros-funsd-finetuned",
+#     eval_strategy="epoch",
+#     learning_rate=5e-5,
+#     per_device_train_batch_size=16,
+#     per_device_eval_batch_size=16,
+#     num_train_epochs=args.epochs,
+#     save_strategy="best",
+#     save_total_limit=2,
+#     optim="adamw_torch",
+#     load_best_model_at_end=True,
+#     push_to_hub=False,
+#     report_to = 'none',
+#     metric_for_best_model="eval_f1",
+#     )
 
 
 def get_training_args(args):
     # Take from config/bros in bros githu
     return TrainingArguments(
-    output_dir="./bros-funsd-finetuned",
-    eval_strategy="epoch",
-    learning_rate=5e-5,
-    per_device_train_batch_size=8,
-    per_device_eval_batch_size=8,
-    num_train_epochs=args.epochs,
-    save_strategy="best",
-    save_total_limit=2,
-    optim="adamw_torch",
-    load_best_model_at_end=True,
-    push_to_hub=False,
-    report_to = 'none',
-    metric_for_best_model="eval_f1",
+      output_dir="./bros-funsd-finetuned",
+      eval_strategy="epoch",
+      num_train_epochs=args.epochs,
+      gradient_clip_val=1.0,
+      gradient_clip_algorithm="norm",
+      precision=16,
+      per_device_train_batch_size=16,
+      per_device_eval_batch_size=8,
+      optim="adamw_torch",
+      learning_rate=5e-5,
+      lr_scheduler="linear",
+      load_best_model_at_end=True,
+      push_to_hub=False,
+      report_to = 'none',
+      metric_for_best_model="eval_f1",
     )
+
+    
 
 
 def compute_metrics(p):
