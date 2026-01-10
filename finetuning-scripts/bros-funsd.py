@@ -101,7 +101,6 @@ def tokenize_words(batch, args, processor):
     aligned_boxes, aligned_labels = [], []
     for word_id in encodings.word_ids(batch_index=idx):
       if word_id in [None,0,100,101,102,103]:
-      if word_id in [None,0,100,101,102,103]:
         aligned_boxes.append([0, 0, 0, 0])
         aligned_labels.append(-100)
       else:
@@ -180,13 +179,7 @@ def compute_metrics(p):
     f.write(f'{[len(p) for p in predictions]}\n')
     f.write(f'{[len(l) for l in labels]}\n')
     f.write(f'{confusion_matrix([l for lab in true_labels for l in lab], [p for preds in true_preds for p in preds])}')
-  
-  # confusion matrix with p 
 
-  with open("confusion_matrix.txt", 'w') as f:
-    f.write(f'{[len(p) for p in predictions]}\n')
-    f.write(f'{[len(l) for l in labels]}\n')
-    f.write(f'{confusion_matrix([l for lab in true_labels for l in lab], [p for preds in true_preds for p in preds])}')
   return {
       "precision": results["overall_precision"],
       "recall": results["overall_recall"],
@@ -205,6 +198,7 @@ def spade_test():
   print(encoding.keys())
   outputs = model(**encoding)
   return outputs
+
 
 def main(args):
     if not args.warnings:
